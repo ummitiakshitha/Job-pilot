@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "JobPilot — 3D-Enhanced Job Application Tracker (Full-Stack MERN Mini-Project)",
   "scripts": {
-    "build": "npm --prefix client install && npm --prefix client run build && npm --prefix server install",
+    "build": "npm --prefix client install --include=dev && npm --prefix client run build && npm --prefix server install",
     "start": "node server/src/server.js",
     "server": "npm --prefix server start",
     "server:dev": "npm --prefix server run dev",
