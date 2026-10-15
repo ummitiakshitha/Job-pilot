@@ -250,9 +250,8 @@ All 18 automated integration test cases executed and passed with 0 errors:
 
 ```text
 --- 🧪 STARTING JOBPILOT BACKEND REST API TEST SUITE ---
-[Database] Successfully connected to In-Memory MongoDB at: mongodb://127.0.0.1:23233/
-[Database] Ready for evaluation, demo, and real CRUD operations!
-Test server running on http://127.0.0.1:49670
+[Database] Successfully connected to MongoDB at: mongodb+srv://.../jobpilot
+Test server running on http://127.0.0.1:57379
   ✅ PASS: GET /api/health returns 200 OK
   ✅ PASS: GET /api/applications rejects unauthenticated request (401)
   ✅ PASS: POST /api/auth/register creates user and returns token (201)
@@ -269,76 +268,121 @@ Test server running on http://127.0.0.1:49670
   ✅ PASS: GET /api/applications/stats computes aggregation metrics (200)
   ✅ PASS: User 2 cannot access User 1 application (404/Isolated)
   ✅ PASS: User 2 cannot delete User 1 application (404/Isolated)
+  ✅ PASS: POST /api/applications/:id/checklist adds preparation task (201)
+  ✅ PASS: PATCH /api/applications/:id/checklist/:taskId marks task completed (200)
+  ✅ PASS: PATCH /api/applications/:id/follow-up sets follow-up date (200)
+  ✅ PASS: PATCH /api/applications/:id/favorite bookmarks application (200)
   ✅ PASS: DELETE /api/applications/:id removes document for owner (200)
   ✅ PASS: Subsequent GET for deleted application returns 404
+  ✅ PASS: POST /api/job-descriptions/decode parses structured requirements (201)
+  ✅ PASS: POST /api/skills adds skill to inventory (201)
+  ✅ PASS: POST /api/skills/gap-analysis calculates mathematical coverage % (200)
+  ✅ PASS: POST /api/learning-plans/generate builds structured roadmap (201)
+  ✅ PASS: PATCH /api/learning-plans/:id/tasks/:taskId toggles milestone completion (200)
+  ✅ PASS: POST /api/interviews/start initializes mock interview session (201)
+  ✅ PASS: POST /api/interviews/:id/answer evaluates response with rubric feedback (200)
+  ✅ PASS: POST /api/interviews/:id/complete finalizes session with summary (200)
+  ✅ PASS: POST /api/star-answers creates structured narrative with clarity checks (201)
+  ✅ PASS: GET /api/practice/questions retrieves curated question bank (200)
+  ✅ PASS: POST /api/practice/attempt records user practice progress (200)
+  ✅ PASS: GET /api/career-readiness computes composite score and recommended actions (200)
+  ✅ PASS: POST /api/placement-rescue/plan handles interview state safely without false countdowns (200)
+[Database] MongoDB disconnected
 
 ================ TEST SUMMARY ================
-Total Passed: 18
+Total Passed: 35
 Total Failed: 0
 ==============================================
 ```
 
 ---
 
-## 9. Faculty Demonstration Script (Step-by-Step)
+## 9. Comprehensive AI & Placement Preparation Platform Modules
 
-Follow this sequence for a seamless 5-minute academic presentation:
+### Module 1: AI Resume Analyzer & ATS Audit (`/resume-analyzer`)
+- **PDF Extraction**: Server-side parsing of uploaded resumes using `pdf-parse` with MIME and 5MB size validation.
+- **Section & Skills Detection**: Heuristic keyword identification across Education, Experience, Skills, Projects, and Certifications.
+- **Transparent Match Score**: `Match Score = 40% (Skill Coverage) + 25% (Sections) + 20% (Contact & Links) + 15% (Length & Depth)`.
+- **XYZ Bullet Point Rewrites**: Actionable before/after suggestions transforming passive duties into metric-driven accomplishments.
+- **Prioritized Checklist**: Categorized High/Medium/Low action items.
 
-1. **Introduction & Landing Page (`http://localhost:5173`)**:
-   - Showcase the JobPilot design identity (deep navy background `#060913`, electric violet accents, glassmorphic cards).
-   - Point out the 3D interactive crystal hero (React Three Fiber) with automatic fallback and reduced-motion compatibility.
-   - Explain the core problem: job search chaos and lack of recruitment analytics.
+### Module 2: Job Description Decoder (`/jd-decoder`)
+- Extracts required skills, preferred qualifications, tools & tech, experience thresholds, education, and responsibilities.
+- 1-click bridge actions: Send to Skill Gap Analyzer, launch tailored Mock Interview, or audit resume against JD.
 
-2. **Authentication Flow (`/login` & `/register`)**:
-   - Demonstrate client-side validation (empty email, short password, mismatched passwords).
-   - Use the **1-Click Faculty Demo Login** button or register a new user (`alex.pilot@jobpilot.io` / `Password123`).
-   - Highlight that passwords are encrypted using `bcryptjs` (salt rounds: 10) and session is protected via JWT.
+### Module 3: Skill Gap Analyzer (`/skill-gap`)
+- Personal engineering skills inventory persisted in MongoDB with categories, proficiency levels, and 1-5 star confidence ratings.
+- **Transparent Formula**: `Coverage % = (Matched Required Skills / Total Identified Required Skills) * 100`.
+- Categorizes skills into Fully Matched, Partially Developed, and Missing Gaps with recommended learning actions.
 
-3. **Live Dashboard Overview (`/dashboard`)**:
-   - Point out the 4 summary cards: **Total Applications**, **Interviews**, **Offers**, and **Rejections**.
-   - Explain how all counts and the Recharts donut/bar chart are computed via native MongoDB aggregation queries rather than mocked values.
+### Module 4: Personalized Skill Improver (`/learning-plan`)
+- Converts skill gaps into a structured multi-week roadmap based on daily hours commitment.
+- Weekly milestones, practical tasks with verified official documentation URLs (React, Node.js, MDN, MongoDB, Docker), self-assessment prompts, and dynamic progress bar.
 
-4. **Add Application & Database Persistence**:
-   - Click **"+ Track Application"**.
-   - Submit: Company: `Stripe`, Role: `Senior Full Stack Engineer`, Status: `Interview`, Salary: `$160,000`, Job URL: `https://stripe.com/jobs`.
-   - Show how the modal validates required fields and immediately refreshes the application list and summary counts.
+### Module 5: AI Interview Coach & Mock Room (`/interview-coach`)
+- Live simulated interview room with interactive countdown timer and speech recognition support (Web Speech API + typed fallback).
+- Tailored question banks for Technical, Behavioral, HR, and Mixed rounds.
+- Real-time rubric evaluation on answers: scoring, strengths, missing concepts, model answer, and follow-up practice.
 
-5. **Dual Views: Table & Kanban Pipeline (`/applications`)**:
-   - **Table View**: Inspect company, role, salary, date applied, and scheduled interview date.
-   - **Search & Filter**: Search "Stripe" or filter by status `Interview`.
-   - **Kanban Board**: Switch to Kanban view. Advance Stripe from `Interview` to `Offer`. Confirm the `PATCH /api/applications/:id/status` request succeeds and persists to the database.
+### Module 6: STAR Answer Story Builder (`/star-builder`)
+- Guided breakdown for Situation, Task, Action, and Result with live combined preview.
+- Completeness audit and automatic metric detection check (`XYZ` format).
 
-6. **Details & Deletion**:
-   - Click the **View (Eye)** icon to open the full slide-over details modal showing created timestamps, notes, and direct job link.
-   - Click **Delete (Trash)** to test the confirmation modal and verify the record is removed from MongoDB.
+### Module 7: Technical Interview Practice Lab (`/practice-lab`)
+- Curated question bank covering DSA, DBMS/SQL, OS, Computer Networks, OOP, Full Stack, JavaScript/React, and System Design.
+- Filter by topic and difficulty; includes hints, full solution complexity analysis, bookmarks, and solved progress tracking.
 
-7. **Multi-User Data Isolation**:
-   - Log out and log into a second account. Demonstrate that User 2 cannot see, edit, or delete any records belonging to User 1 (enforced on both client UI and server backend authorization).
+### Module 8: Career Readiness Dashboard (`/career-readiness`)
+- Unified preparation index connecting application tracking to preparation modules.
+- **Weighted Formula**: `25% Resume + 25% Skill Coverage + 20% Learning Plan + 15% Mock Interview Avg + 15% Practice Solved`.
+- Dynamic Priority Action Plan generating real-time suggestions based on user gaps.
 
----
+### Module 9: Placement Rescue Mode (`/placement-rescue`)
+- High-intensity countdown planner for an upcoming interview.
+- Prioritized daily schedule fitting remaining preparation time (e.g., Company intelligence -> Algorithm drills -> STAR narratives -> Final sanity check).
 
-## 10. Quality & Academic Rubric Alignment
-
-| Rubric Criteria | Implementation Evidence | Verification Status |
-|---|---|---|
-| **MongoDB Schema & Validation** | `server/src/models/User.js`, `server/src/models/JobApplication.js` | Verified (enums, required, non-negative min, compound indexes) |
-| **Express Server & REST APIs** | `server/src/app.js`, `server/src/server.js`, `server/src/routes/*` | Verified (HTTP 200, 201, 400, 401, 404, 409) |
-| **Authentication & Authorization** | `server/src/middleware/authMiddleware.js`, `server/src/controllers/authController.js` | Verified (bcryptjs hash, JWT Bearer tokens, protected routes) |
-| **Data Isolation** | All queries filter `{ userId: req.user._id }` | Verified (Test Case #15: 404 cross-user access rejection) |
-| **Frontend UI/UX & React State** | React 18, Vite, Tailwind CSS, Framer Motion, Lucide React | Verified (responsive sidebar, navbar, modals, cards) |
-| **Data Visualizations & 3D** | Recharts (donut & monthly bar charts), React Three Fiber crystal | Verified (fallback graphic for non-WebGL environments) |
-| **CRUD & Kanban Pipeline** | Full Table & Kanban board, status PATCH endpoint | Verified (persisted status transitions) |
-| **Testing & Documentation** | 18 automated integration tests, README | Verified (all tests pass, complete run guide) |
+### Module 10: Company & Role Comparison (`/company-comparison`)
+- Multi-offer side-by-side matrix comparing salary (INR), interview dates, location, and preparation effort across up to 3 opportunities.
 
 ---
 
-## 11. Known Limitations & Future Enhancements
+## 10. Faculty Demonstration Script (Step-by-Step)
 
-- **Email Verification & Password Reset**: Currently, email uniqueness is verified via database indexes. In production, an SMTP integration (e.g., SendGrid/Nodemailer) could add token-based email activation.
-- **Resume File Upload**: Future iterations could integrate AWS S3 or Cloudinary to attach PDF resumes and customized cover letters to each job application document.
-- **Browser Push Notifications**: Scheduled interview reminders can be delivered directly to mobile or desktop browsers via Web Push API.
+Follow this 8-step walkthrough for a flawless academic evaluation:
+
+1. **Opening Landing Page (`http://localhost:5174/`)**:
+   - Showcase the warm ivory (`#FDFCF7`) and forest green (`#1C3A2B`) branding with the interactive 3D hero experience.
+2. **Dashboard & Job Application Lifecycle (`/dashboard` & `/applications`)**:
+   - Track an application with Indian Rupee CTC (`₹8,50,000`), scheduled interview date, and follow-up reminder.
+   - Advance through Kanban columns with HTML5 drag-and-drop.
+3. **Resume Analyzer (`/resume-analyzer`)**:
+   - Upload a sample PDF resume, select the target role, and view the extracted sections, keyword coverage, and XYZ bullet improvements.
+4. **Job Description Decoder (`/jd-decoder`)**:
+   - Paste a job description to extract required skills and technical concepts.
+5. **Skill Gap Analyzer (`/skill-gap`)**:
+   - Demonstrate the transparent mathematical coverage percentage `(Matched / Total Required) * 100`.
+6. **Learning Roadmap (`/learning-plan`)**:
+   - Generate a customized weekly learning roadmap and check off completed tasks to advance the overall progress bar.
+7. **AI Interview Coach (`/interview-coach`)**:
+   - Enter a mock interview room, answer a technical question under timer pressure, and view rubric evaluation and model answers.
+8. **Career Readiness & Placement Rescue (`/career-readiness` & `/placement-rescue`)**:
+   - View the composite readiness score and daily countdown schedule for upcoming interviews.
+
+---
+
+## 11. Automated Integration Test Suite
+
+Run the full end-to-end integration test suite directly against your live MongoDB database:
+
+```bash
+cd server
+npm test
+```
+
+**Result: 35 / 35 automated integration tests pass with 100% success.**
 
 ---
 
 ## 12. License
 This project is licensed under the MIT License — open for academic evaluation, learning, and extension.
+

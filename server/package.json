@@ -24,7 +24,9 @@
     "express": "^4.19.2",
     "jobpilot-fullstack": "file:..",
     "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.3.1"
+    "mongoose": "^8.3.1",
+    "multer": "^2.4.0",
+    "pdf-parse": "^1.1.1"
   },
   "devDependencies": {
     "mongodb-memory-server": "^9.1.8"

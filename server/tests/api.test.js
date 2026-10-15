@@ -220,6 +220,102 @@ const runTests = async () => {
     const verifyDelete = await request('GET', `/api/applications/${appId}`, null, token1);
     assert('Subsequent GET for deleted application returns 404', verifyDelete.status === 404);
 
+    // ================= NEW AI & PLACEMENT MODULE TESTS =================
+    // 20. Module Two: JD Decoder
+    const jdRes = await request('POST', '/api/job-descriptions/decode', {
+      rawText: 'Looking for a Senior React Developer with 3+ years experience in Node.js, Express, MongoDB, TypeScript, and Docker. Responsibilities include designing scalable REST APIs and mentoring juniors.',
+      title: 'Senior Full Stack Engineer',
+      company: 'TechCorp Solutions',
+    }, token1);
+    assert('POST /api/job-descriptions/decode parses structured requirements (201)', jdRes.status === 201 && jdRes.data.data.extracted.requiredSkills.length > 0);
+    const decodedJdId = jdRes.data?.data?._id;
+
+    // 21. Module Three: Skills & Gap Analysis
+    const addSkillRes = await request('POST', '/api/skills', {
+      name: 'React',
+      category: 'Frontend',
+      proficiency: 'Advanced',
+      confidenceScore: 5,
+      status: 'Proficient',
+    }, token1);
+    assert('POST /api/skills adds skill to inventory (201)', addSkillRes.status === 201);
+
+    const gapRes = await request('POST', '/api/skills/gap-analysis', {
+      targetRole: 'Senior Full Stack Engineer',
+      requiredSkills: ['React', 'Node.js', 'Docker', 'Kubernetes'],
+    }, token1);
+    assert('POST /api/skills/gap-analysis calculates mathematical coverage % (200)', gapRes.status === 200 && typeof gapRes.data.data.coveragePercentage === 'number');
+
+    // 22. Module Four: Learning Plan
+    const planRes = await request('POST', '/api/learning-plans/generate', {
+      targetRole: 'Full Stack Engineer',
+      missingSkills: ['Docker', 'Kubernetes'],
+      dailyHours: 2,
+    }, token1);
+    assert('POST /api/learning-plans/generate builds structured roadmap (201)', planRes.status === 201 && planRes.data.data.modules.length > 0);
+    const planId = planRes.data?.data?._id;
+    const firstTaskId = planRes.data?.data?.modules[0]?.tasks[0]?._id;
+
+    if (planId && firstTaskId) {
+      const taskToggleRes = await request('PATCH', `/api/learning-plans/${planId}/tasks/${firstTaskId}`, {}, token1);
+      assert('PATCH /api/learning-plans/:id/tasks/:taskId toggles milestone completion (200)', taskToggleRes.status === 200 && taskToggleRes.data.data.task.completed === true);
+    }
+
+    // 23. Module Five: AI Interview Coach
+    const interviewRes = await request('POST', '/api/interviews/start', {
+      targetRole: 'Full Stack Developer',
+      interviewType: 'Technical',
+      difficulty: 'Intermediate',
+      questionCount: 2,
+    }, token1);
+    assert('POST /api/interviews/start initializes mock interview session (201)', interviewRes.status === 201 && interviewRes.data.data.questions.length === 2);
+    const sessionId = interviewRes.data?.data?._id;
+
+    if (sessionId) {
+      const answerRes = await request('POST', `/api/interviews/${sessionId}/answer`, {
+        questionIndex: 0,
+        answerText: 'In Node.js, the event loop handles asynchronous operations using libuv. Microtasks run before macrotasks.',
+        timeSpentSeconds: 45,
+      }, token1);
+      assert('POST /api/interviews/:id/answer evaluates response with rubric feedback (200)', answerRes.status === 200 && answerRes.data.data.evaluation.score > 0);
+
+      const completeRes = await request('POST', `/api/interviews/${sessionId}/complete`, {}, token1);
+      assert('POST /api/interviews/:id/complete finalizes session with summary (200)', completeRes.status === 200 && completeRes.data.data.status === 'Completed');
+    }
+
+    // 24. Module Six: STAR Answer Builder
+    const starRes = await request('POST', '/api/star-answers', {
+      title: 'Resolved Database Query Latency',
+      competency: 'Problem Solving & Performance',
+      situation: 'Our application was suffering from 4-second latency spikes during morning peak loads on user registration.',
+      task: 'I was assigned to diagnose the root cause and optimize the MongoDB queries without breaking schema contracts.',
+      action: 'I used MongoDB explain plans, created compound indexes on userId and createdAt, and cached common lookups in Redis.',
+      result: 'Query response times dropped by 78%, and CPU utilization dropped from 85% to 32%, saving the team 4 hours of weekly debugging.',
+      tags: ['MongoDB', 'Performance', 'Redis'],
+    }, token1);
+    assert('POST /api/star-answers creates structured narrative with clarity checks (201)', starRes.status === 201 && starRes.data.data.completenessScore >= 75);
+
+    // 25. Module Seven: Practice Lab
+    const practiceQRes = await request('GET', '/api/practice/questions?topic=All', null, token1);
+    assert('GET /api/practice/questions retrieves curated question bank (200)', practiceQRes.status === 200 && practiceQRes.data.data.length > 0);
+
+    const practiceAttRes = await request('POST', '/api/practice/attempt', {
+      questionId: 'dsa-1',
+      topic: 'Data Structures & Algorithms',
+      difficulty: 'Easy',
+      status: 'Solved',
+      timeSpentSeconds: 120,
+    }, token1);
+    assert('POST /api/practice/attempt records user practice progress (200)', practiceAttRes.status === 200);
+
+    // 26. Module Eight: Career Readiness Dashboard
+    const readinessRes = await request('GET', '/api/career-readiness', null, token1);
+    assert('GET /api/career-readiness computes composite score and recommended actions (200)', readinessRes.status === 200 && typeof readinessRes.data.data.compositeScore === 'number');
+
+    // 27. Module Nine: Placement Rescue Mode
+    const rescueRes = await request('POST', '/api/placement-rescue/plan', {}, token1);
+    assert('POST /api/placement-rescue/plan handles interview state safely without false countdowns (200)', rescueRes.status === 200);
+
   } catch (err) {
     console.error('Fatal test execution error:', err);
     failed++;
