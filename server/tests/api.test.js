@@ -196,7 +196,23 @@ const runTests = async () => {
     const user2DeleteRes = await request('DELETE', `/api/applications/${appId}`, null, token2);
     assert('User 2 cannot delete User 1 application (404/Isolated)', user2DeleteRes.status === 404);
 
-    // 16. DELETE /api/applications/:id by owner
+    // 16. Feature 4: Checklist endpoints
+    const addChecklistRes = await request('POST', `/api/applications/${appId}/checklist`, { text: 'Practice dynamic programming' }, token1);
+    assert('POST /api/applications/:id/checklist adds preparation task (201)', addChecklistRes.status === 201);
+    const addedTaskId = addChecklistRes.data?.data?.checklist?.slice(-1)[0]?.id;
+
+    const toggleTaskRes = await request('PATCH', `/api/applications/${appId}/checklist/${addedTaskId}`, { completed: true }, token1);
+    assert('PATCH /api/applications/:id/checklist/:taskId marks task completed (200)', toggleTaskRes.status === 200);
+
+    // 17. Feature 5: Follow-Up endpoints
+    const followUpRes = await request('PATCH', `/api/applications/${appId}/follow-up`, { followUpDate: new Date().toISOString(), followUpCompleted: false }, token1);
+    assert('PATCH /api/applications/:id/follow-up sets follow-up date (200)', followUpRes.status === 200);
+
+    // 18. Feature 9: Favorites endpoints
+    const favRes = await request('PATCH', `/api/applications/${appId}/favorite`, null, token1);
+    assert('PATCH /api/applications/:id/favorite bookmarks application (200)', favRes.status === 200);
+
+    // 19. DELETE /api/applications/:id by owner
     const deleteRes = await request('DELETE', `/api/applications/${appId}`, null, token1);
     assert('DELETE /api/applications/:id removes document for owner (200)', deleteRes.status === 200);
 

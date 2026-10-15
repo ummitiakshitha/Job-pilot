@@ -1,7 +1,8 @@
 import React from 'react';
-import { Eye, Edit2, Trash2, ExternalLink, Building } from 'lucide-react';
+import { Eye, Edit2, Trash2, ExternalLink, Building, Star, CheckSquare, Sparkles } from 'lucide-react';
 import StatusBadge from '../common/StatusBadge';
 import { TableRowSkeleton } from '../common/LoadingSkeleton';
+import { formatINR, formatDate } from '../../utils/formatters';
 
 const STATUS_OPTIONS = ['Applied', 'Interview', 'Offer', 'Rejected'];
 
@@ -12,28 +13,17 @@ export const ApplicationTable = ({
   onEdit,
   onDelete,
   onStatusChange,
+  onToggleFavorite,
 }) => {
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '—';
-    try {
-      return new Date(dateStr).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      });
-    } catch {
-      return dateStr;
-    }
-  };
-
   return (
     <div className="overflow-x-auto rounded-2xl border border-sand-200 bg-white shadow-card">
       <table className="w-full text-left border-collapse">
         <thead>
           <tr className="border-b border-sand-200 bg-ivory-50 text-stone-500 text-xs font-semibold uppercase tracking-wider font-sans">
-            <th className="py-4 px-5">Company & Role</th>
+            <th className="py-4 px-3 text-center w-10">★</th>
+            <th className="py-4 px-4">Company & Role</th>
             <th className="py-4 px-4">Status</th>
-            <th className="py-4 px-4">Salary</th>
+            <th className="py-4 px-4">Expected / Offer (INR)</th>
             <th className="py-4 px-4">Applied Date</th>
             <th className="py-4 px-4">Interview Date</th>
             <th className="py-4 px-5 text-right">Actions</th>
@@ -44,7 +34,7 @@ export const ApplicationTable = ({
             Array.from({ length: 5 }).map((_, idx) => <TableRowSkeleton key={idx} />)
           ) : applications.length === 0 ? (
             <tr>
-              <td colSpan={6} className="py-12 text-center text-stone-500">
+              <td colSpan={7} className="py-12 text-center text-stone-500 font-medium">
                 No job applications match your filters.
               </td>
             </tr>
@@ -54,8 +44,23 @@ export const ApplicationTable = ({
                 key={app._id}
                 className="hover:bg-ivory-50/70 transition-colors group"
               >
+                {/* Favorite Bookmark */}
+                <td className="py-4 px-3 text-center">
+                  <button
+                    onClick={() => onToggleFavorite && onToggleFavorite(app._id)}
+                    className="p-1 text-stone-300 hover:text-amber-500 transition-colors"
+                    title={app.isFavorite ? 'Remove bookmark' : 'Bookmark application'}
+                  >
+                    <Star
+                      className={`w-4 h-4 mx-auto ${
+                        app.isFavorite ? 'text-amber-500 fill-amber-400' : 'text-stone-300'
+                      }`}
+                    />
+                  </button>
+                </td>
+
                 {/* Company & Role */}
-                <td className="py-4 px-5">
+                <td className="py-4 px-4">
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-xl bg-forest-50 border border-forest-100/90 flex items-center justify-center text-forest-800 font-bold text-xs uppercase shadow-sm">
                       {app.company.slice(0, 2)}
@@ -78,6 +83,12 @@ export const ApplicationTable = ({
                       <div className="text-xs text-stone-500 flex items-center gap-1 mt-0.5">
                         <Building className="w-3 h-3 text-forest-600" />
                         <span>{app.company}</span>
+                        {app.checklist?.length > 0 && (
+                          <span className="ml-2 text-[10px] text-stone-400 flex items-center gap-0.5">
+                            <CheckSquare className="w-2.5 h-2.5 text-forest-600" />
+                            {app.checklist.filter((t) => t.completed).length}/{app.checklist.length}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -100,11 +111,21 @@ export const ApplicationTable = ({
                   </div>
                 </td>
 
-                {/* Salary */}
-                <td className="py-4 px-4 font-semibold text-stone-800">
-                  {app.salaryExpectation
-                    ? `$${Number(app.salaryExpectation).toLocaleString()}`
-                    : '—'}
+                {/* Salary (Indian Rupees format) */}
+                <td className="py-4 px-4 font-semibold text-stone-800 text-xs">
+                  <div>
+                    {app.salaryExpectation ? (
+                      <span>{formatINR(app.salaryExpectation)}</span>
+                    ) : (
+                      <span className="text-stone-400">—</span>
+                    )}
+                  </div>
+                  {app.offeredSalary && (
+                    <div className="text-[10px] text-emerald-700 font-bold flex items-center gap-0.5 mt-0.5">
+                      <Sparkles className="w-2.5 h-2.5" />
+                      Offer: {formatINR(app.offeredSalary)}
+                    </div>
+                  )}
                 </td>
 
                 {/* Applied Date */}
@@ -129,7 +150,7 @@ export const ApplicationTable = ({
                     <button
                       onClick={() => onView(app)}
                       className="p-1.5 rounded-lg text-stone-400 hover:text-stone-800 hover:bg-sand-100 transition-colors"
-                      title="View Details"
+                      title="View Details & Checklist"
                     >
                       <Eye className="w-4 h-4" />
                     </button>

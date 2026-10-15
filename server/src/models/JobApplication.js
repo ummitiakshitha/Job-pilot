@@ -57,6 +57,44 @@ const jobApplicationSchema = new mongoose.Schema(
       maxlength: [2000, 'Notes cannot exceed 2000 characters'],
       default: '',
     },
+    // Feature 4: Interview Preparation Checklist
+    checklist: [
+      {
+        id: { type: String, required: true },
+        text: { type: String, required: true, trim: true },
+        completed: { type: Boolean, default: false },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
+    // Feature 5: Follow-Up Reminders
+    followUpDate: {
+      type: Date,
+      default: null,
+    },
+    followUpCompleted: {
+      type: Boolean,
+      default: false,
+    },
+    // Feature 6: Confirmed Offer Salary Compensation
+    offeredSalary: {
+      type: Number,
+      min: [0, 'Offered salary cannot be negative'],
+      default: null,
+    },
+    // Feature 9: Bookmarking & Favorites
+    isFavorite: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    // Feature 8: Real Activity Timeline
+    activityHistory: [
+      {
+        action: { type: String, required: true },
+        description: { type: String, required: true },
+        timestamp: { type: Date, default: Date.now },
+      },
+    ],
   },
   {
     timestamps: true,

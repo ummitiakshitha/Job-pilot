@@ -8,6 +8,8 @@ import {
   Plus,
   X,
   RotateCcw,
+  Download,
+  Star,
 } from 'lucide-react';
 import applicationService from '../api/applicationService';
 import ApplicationTable from '../components/applications/ApplicationTable';
@@ -15,6 +17,7 @@ import KanbanBoard from '../components/applications/KanbanBoard';
 import ApplicationFormModal from '../components/applications/ApplicationFormModal';
 import ApplicationDetailsModal from '../components/applications/ApplicationDetailsModal';
 import ConfirmDeleteModal from '../components/common/ConfirmDeleteModal';
+import { exportApplicationsToCSV } from '../utils/formatters';
 import { motion } from 'framer-motion';
 
 const STATUS_OPTIONS = ['Applied', 'Interview', 'Offer', 'Rejected'];
@@ -31,6 +34,7 @@ export const ApplicationsPage = () => {
   // Filters state
   const [search, setSearch] = useState(searchParams.get('search') || '');
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || '');
+  const [favoritesOnly, setFavoritesOnly] = useState(searchParams.get('favorites') === 'true');
   const [sortBy, setSortBy] = useState(searchParams.get('sortBy') || 'applicationDate');
   const [sortOrder, setSortOrder] = useState(searchParams.get('order') || 'desc');
 
@@ -58,6 +62,7 @@ export const ApplicationsPage = () => {
       };
       if (search.trim()) params.search = search.trim();
       if (statusFilter) params.status = statusFilter;
+      if (favoritesOnly) params.favoritesOnly = true;
 
       const res = await applicationService.getApplications(params);
       if (res?.data) {
@@ -73,7 +78,7 @@ export const ApplicationsPage = () => {
 
   useEffect(() => {
     fetchApplications();
-  }, [search, statusFilter, sortBy, sortOrder, refreshTrigger]);
+  }, [search, statusFilter, favoritesOnly, sortBy, sortOrder, refreshTrigger]);
 
   // Keep query params in URL updated
   useEffect(() => {
@@ -81,14 +86,16 @@ export const ApplicationsPage = () => {
     if (viewMode === 'kanban') nextParams.view = 'kanban';
     if (search.trim()) nextParams.search = search.trim();
     if (statusFilter) nextParams.status = statusFilter;
+    if (favoritesOnly) nextParams.favorites = 'true';
     if (sortBy !== 'applicationDate') nextParams.sortBy = sortBy;
     if (sortOrder !== 'desc') nextParams.order = sortOrder;
     setSearchParams(nextParams, { replace: true });
-  }, [viewMode, search, statusFilter, sortBy, sortOrder]);
+  }, [viewMode, search, statusFilter, favoritesOnly, sortBy, sortOrder]);
 
   const handleClearFilters = () => {
     setSearch('');
     setStatusFilter('');
+    setFavoritesOnly(false);
     setSortBy('applicationDate');
     setSortOrder('desc');
   };
@@ -108,6 +115,22 @@ export const ApplicationsPage = () => {
     } catch (err) {
       console.error('Status update failed:', err);
       fetchApplications(); // Revert on failure
+    }
+  };
+
+  // Toggle favorite / bookmark
+  const handleToggleFavorite = async (appId) => {
+    try {
+      setApplications((prev) =>
+        prev.map((a) => (a._id === appId ? { ...a, isFavorite: !a.isFavorite } : a))
+      );
+      await applicationService.toggleFavorite(appId);
+      if (context?.triggerRefresh) {
+        context.triggerRefresh();
+      }
+    } catch (err) {
+      console.error('Failed to toggle bookmark:', err);
+      fetchApplications();
     }
   };
 
@@ -138,7 +161,8 @@ export const ApplicationsPage = () => {
     }
   };
 
-  const hasActiveFilters = search || statusFilter || sortBy !== 'applicationDate' || sortOrder !== 'desc';
+  const hasActiveFilters =
+    search || statusFilter || favoritesOnly || sortBy !== 'applicationDate' || sortOrder !== 'desc';
 
   return (
     <div className="space-y-6 pb-12">
@@ -154,11 +178,21 @@ export const ApplicationsPage = () => {
             Job Applications
           </h1>
           <p className="text-xs md:text-sm text-stone-500 mt-1 font-medium">
-            Manage, filter, and advance your active recruitment pipelines ({applications.length} total)
+            Manage, filter, advance, and drag your active recruitment pipelines ({applications.length} displayed)
           </p>
         </div>
 
         <div className="flex items-center gap-3">
+          {/* CSV Export Button */}
+          <button
+            onClick={() => exportApplicationsToCSV(applications)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-sand-200 hover:bg-sand-50 text-stone-700 text-xs font-semibold shadow-sm transition-all"
+            title="Export applications to CSV"
+          >
+            <Download className="w-3.5 h-3.5 text-forest-700" />
+            <span className="hidden sm:inline">Export CSV</span>
+          </button>
+
           {/* View Mode Switcher */}
           <div className="flex items-center p-1 rounded-xl bg-white border border-sand-200 shadow-soft">
             <button
@@ -222,8 +256,22 @@ export const ApplicationsPage = () => {
           )}
         </div>
 
-        {/* Status Filter */}
-        <div className="flex items-center gap-2">
+        {/* Filters Group */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Favorites Filter Toggle */}
+          <button
+            onClick={() => setFavoritesOnly(!favoritesOnly)}
+            className={`flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
+              favoritesOnly
+                ? 'bg-amber-100 text-amber-900 border-amber-300 font-bold shadow-sm'
+                : 'bg-white text-stone-600 border-sand-200 hover:bg-sand-50'
+            }`}
+          >
+            <Star className={`w-3.5 h-3.5 ${favoritesOnly ? 'fill-amber-500 text-amber-600' : 'text-stone-400'}`} />
+            <span>Favorites</span>
+          </button>
+
+          {/* Status Filter */}
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -294,6 +342,7 @@ export const ApplicationsPage = () => {
               setIsDeleteModalOpen(true);
             }}
             onStatusChange={handleStatusChange}
+            onToggleFavorite={handleToggleFavorite}
           />
         ) : (
           <KanbanBoard
@@ -312,6 +361,7 @@ export const ApplicationsPage = () => {
               setIsDeleteModalOpen(true);
             }}
             onStatusChange={handleStatusChange}
+            onToggleFavorite={handleToggleFavorite}
           />
         )}
       </motion.div>
@@ -335,6 +385,7 @@ export const ApplicationsPage = () => {
           );
           if (context?.triggerRefresh) context.triggerRefresh();
         }}
+        onRefresh={fetchApplications}
       />
 
       <ApplicationFormModal

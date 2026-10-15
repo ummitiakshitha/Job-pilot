@@ -1,13 +1,28 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Search, Plus, User, LogOut, Menu } from 'lucide-react';
+import { Search, Plus, User, LogOut, Menu, Sun, Moon } from 'lucide-react';
 
 export const Navbar = ({ onOpenNewAppModal, onToggleMobileSidebar }) => {
   const { user, logout } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [isDark, setIsDark] = useState(() => {
+    return document.documentElement.classList.contains('dark') || localStorage.getItem('jobpilot-theme') === 'dark';
+  });
   const navigate = useNavigate();
+
+  const toggleTheme = () => {
+    const nextDark = !isDark;
+    setIsDark(nextDark);
+    if (nextDark) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('jobpilot-theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('jobpilot-theme', 'light');
+    }
+  };
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -49,6 +64,15 @@ export const Navbar = ({ onOpenNewAppModal, onToggleMobileSidebar }) => {
 
       {/* Right Action Icons & User Dropdown */}
       <div className="flex items-center gap-3">
+        {/* Theme Toggle */}
+        <button
+          onClick={toggleTheme}
+          title={isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
+          className="p-2 rounded-xl text-stone-600 hover:text-stone-900 hover:bg-sand-100 border border-transparent hover:border-sand-200 transition-colors"
+        >
+          {isDark ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-forest-800" />}
+        </button>
+
         {onOpenNewAppModal && (
           <button
             onClick={onOpenNewAppModal}

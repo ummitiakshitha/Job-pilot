@@ -2,6 +2,15 @@ const mongoose = require('mongoose');
 const JobApplication = require('../models/JobApplication');
 const { STATUS_VALUES } = require('../models/JobApplication');
 
+// Default initial checklist tasks for newly created applications
+const getDefaultChecklist = () => [
+  { id: 'task-1', text: 'Research company background and core product offerings', completed: false, createdAt: new Date() },
+  { id: 'task-2', text: 'Review job description requirements and align portfolio projects', completed: false, createdAt: new Date() },
+  { id: 'task-3', text: 'Revise core Data Structures, Algorithms & system concepts', completed: false, createdAt: new Date() },
+  { id: 'task-4', text: 'Prepare STAR stories for behavioral and teamwork questions', completed: false, createdAt: new Date() },
+  { id: 'task-5', text: 'Prepare 3 thoughtful questions to ask the interviewer', completed: false, createdAt: new Date() },
+];
+
 // Helper to validate application input
 const validateApplicationInput = (data, isPatch = false) => {
   const errors = {};
@@ -50,10 +59,24 @@ const validateApplicationInput = (data, isPatch = false) => {
     }
   }
 
+  if (data.offeredSalary !== undefined && data.offeredSalary !== null && data.offeredSalary !== '') {
+    const num = Number(data.offeredSalary);
+    if (isNaN(num) || num < 0) {
+      errors.offeredSalary = 'Offered salary must be a non-negative number';
+    }
+  }
+
   if (data.interviewDate) {
     const parsedInterview = new Date(data.interviewDate);
     if (isNaN(parsedInterview.getTime())) {
       errors.interviewDate = 'Please provide a valid interview date';
+    }
+  }
+
+  if (data.followUpDate) {
+    const parsedFollowUp = new Date(data.followUpDate);
+    if (isNaN(parsedFollowUp.getTime())) {
+      errors.followUpDate = 'Please provide a valid follow-up date';
     }
   }
 
@@ -71,6 +94,9 @@ const getApplications = async (req, res, next) => {
     const {
       search,
       status,
+      favoritesOnly,
+      startDate,
+      endDate,
       sortBy = 'applicationDate',
       order = 'desc',
       page = 1,
@@ -82,6 +108,18 @@ const getApplications = async (req, res, next) => {
     // Status filter
     if (status && STATUS_VALUES.includes(status)) {
       query.status = status;
+    }
+
+    // Favorites filter
+    if (favoritesOnly === 'true' || favoritesOnly === true) {
+      query.isFavorite = true;
+    }
+
+    // Date range filter
+    if (startDate || endDate) {
+      query.applicationDate = {};
+      if (startDate) query.applicationDate.$gte = new Date(startDate);
+      if (endDate) query.applicationDate.$lte = new Date(endDate);
     }
 
     // Search filter across company and role
@@ -177,11 +215,18 @@ const createApplication = async (req, res, next) => {
       role,
       jobLink,
       salaryExpectation,
+      offeredSalary,
       applicationDate,
       status,
       interviewDate,
+      followUpDate,
+      isFavorite,
       notes,
+      checklist,
     } = req.body;
+
+    const initialChecklist =
+      Array.isArray(checklist) && checklist.length > 0 ? checklist : getDefaultChecklist();
 
     const newApplication = await JobApplication.create({
       userId: req.user._id,
@@ -192,10 +237,25 @@ const createApplication = async (req, res, next) => {
         salaryExpectation !== undefined && salaryExpectation !== null && salaryExpectation !== ''
           ? Number(salaryExpectation)
           : null,
+      offeredSalary:
+        offeredSalary !== undefined && offeredSalary !== null && offeredSalary !== ''
+          ? Number(offeredSalary)
+          : null,
       applicationDate: applicationDate ? new Date(applicationDate) : new Date(),
       status: status || 'Applied',
       interviewDate: interviewDate ? new Date(interviewDate) : null,
+      followUpDate: followUpDate ? new Date(followUpDate) : null,
+      followUpCompleted: false,
+      isFavorite: Boolean(isFavorite),
       notes: notes ? notes.trim() : '',
+      checklist: initialChecklist,
+      activityHistory: [
+        {
+          action: 'Created',
+          description: `Application logged for ${role.trim()} at ${company.trim()}`,
+          timestamp: new Date(),
+        },
+      ],
     });
 
     return res.status(201).json({
@@ -235,10 +295,15 @@ const updateApplication = async (req, res, next) => {
       role,
       jobLink,
       salaryExpectation,
+      offeredSalary,
       applicationDate,
       status,
       interviewDate,
+      followUpDate,
+      followUpCompleted,
+      isFavorite,
       notes,
+      checklist,
     } = req.body;
 
     const application = await JobApplication.findOne({
@@ -253,6 +318,23 @@ const updateApplication = async (req, res, next) => {
       });
     }
 
+    // Activity tracking for changes
+    if (status && status !== application.status) {
+      application.activityHistory.push({
+        action: 'Status Changed',
+        description: `Status advanced from ${application.status} to ${status}`,
+        timestamp: new Date(),
+      });
+    }
+
+    if (interviewDate && String(interviewDate) !== String(application.interviewDate)) {
+      application.activityHistory.push({
+        action: 'Interview Scheduled',
+        description: `Interview set for ${new Date(interviewDate).toLocaleDateString('en-US')}`,
+        timestamp: new Date(),
+      });
+    }
+
     application.company = company.trim();
     application.role = role.trim();
     application.jobLink = jobLink ? jobLink.trim() : '';
@@ -260,10 +342,26 @@ const updateApplication = async (req, res, next) => {
       salaryExpectation !== undefined && salaryExpectation !== null && salaryExpectation !== ''
         ? Number(salaryExpectation)
         : null;
+    if (offeredSalary !== undefined) {
+      application.offeredSalary =
+        offeredSalary !== null && offeredSalary !== '' ? Number(offeredSalary) : null;
+    }
     application.applicationDate = applicationDate ? new Date(applicationDate) : application.applicationDate;
     application.status = status || application.status;
     application.interviewDate = interviewDate ? new Date(interviewDate) : null;
+    if (followUpDate !== undefined) {
+      application.followUpDate = followUpDate ? new Date(followUpDate) : null;
+    }
+    if (followUpCompleted !== undefined) {
+      application.followUpCompleted = Boolean(followUpCompleted);
+    }
+    if (isFavorite !== undefined) {
+      application.isFavorite = Boolean(isFavorite);
+    }
     application.notes = notes !== undefined ? notes.trim() : application.notes;
+    if (Array.isArray(checklist)) {
+      application.checklist = checklist;
+    }
 
     const updatedApplication = await application.save();
 
@@ -314,13 +412,209 @@ const updateStatus = async (req, res, next) => {
       });
     }
 
+    const oldStatus = application.status;
     application.status = status;
+    application.activityHistory.push({
+      action: 'Status Changed',
+      description: `Stage shifted from ${oldStatus} to ${status}`,
+      timestamp: new Date(),
+    });
+
     const updatedApplication = await application.save();
 
     return res.status(200).json({
       success: true,
       message: 'Application status updated successfully',
       data: updatedApplication,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Toggle checklist item completion
+// @route   PATCH /api/applications/:id/checklist/:taskId
+// @access  Private
+const toggleChecklistTask = async (req, res, next) => {
+  try {
+    const { id, taskId } = req.params;
+    const { completed } = req.body;
+
+    const application = await JobApplication.findOne({
+      _id: id,
+      userId: req.user._id,
+    });
+
+    if (!application) {
+      return res.status(404).json({ success: false, message: 'Application not found' });
+    }
+
+    const task = application.checklist.find((t) => t.id === taskId);
+    if (!task) {
+      return res.status(404).json({ success: false, message: 'Checklist task not found' });
+    }
+
+    task.completed = completed !== undefined ? Boolean(completed) : !task.completed;
+    application.activityHistory.push({
+      action: 'Checklist Updated',
+      description: `Task "${task.text}" marked as ${task.completed ? 'complete' : 'pending'}`,
+      timestamp: new Date(),
+    });
+
+    await application.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Checklist task updated',
+      data: application,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Add new custom task to checklist
+// @route   POST /api/applications/:id/checklist
+// @access  Private
+const addChecklistTask = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { text } = req.body;
+
+    if (!text || !text.trim()) {
+      return res.status(400).json({ success: false, message: 'Task text is required' });
+    }
+
+    const application = await JobApplication.findOne({
+      _id: id,
+      userId: req.user._id,
+    });
+
+    if (!application) {
+      return res.status(404).json({ success: false, message: 'Application not found' });
+    }
+
+    const newTask = {
+      id: 'task-' + Date.now(),
+      text: text.trim(),
+      completed: false,
+      createdAt: new Date(),
+    };
+
+    application.checklist.push(newTask);
+    application.activityHistory.push({
+      action: 'Checklist Added',
+      description: `Added task: "${text.trim()}"`,
+      timestamp: new Date(),
+    });
+
+    await application.save();
+
+    return res.status(201).json({
+      success: true,
+      message: 'Checklist task added',
+      data: application,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Delete task from checklist
+// @route   DELETE /api/applications/:id/checklist/:taskId
+// @access  Private
+const deleteChecklistTask = async (req, res, next) => {
+  try {
+    const { id, taskId } = req.params;
+
+    const application = await JobApplication.findOne({
+      _id: id,
+      userId: req.user._id,
+    });
+
+    if (!application) {
+      return res.status(404).json({ success: false, message: 'Application not found' });
+    }
+
+    application.checklist = application.checklist.filter((t) => t.id !== taskId);
+    await application.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Checklist task deleted',
+      data: application,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Update follow-up date and completion state
+// @route   PATCH /api/applications/:id/follow-up
+// @access  Private
+const updateFollowUp = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { followUpDate, followUpCompleted } = req.body;
+
+    const application = await JobApplication.findOne({
+      _id: id,
+      userId: req.user._id,
+    });
+
+    if (!application) {
+      return res.status(404).json({ success: false, message: 'Application not found' });
+    }
+
+    if (followUpDate !== undefined) {
+      application.followUpDate = followUpDate ? new Date(followUpDate) : null;
+    }
+    if (followUpCompleted !== undefined) {
+      application.followUpCompleted = Boolean(followUpCompleted);
+      if (application.followUpCompleted) {
+        application.activityHistory.push({
+          action: 'Follow-Up Completed',
+          description: `Follow-up action marked complete`,
+          timestamp: new Date(),
+        });
+      }
+    }
+
+    await application.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Follow-up status updated',
+      data: application,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Toggle application favorite / bookmark
+// @route   PATCH /api/applications/:id/favorite
+// @access  Private
+const toggleFavorite = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const application = await JobApplication.findOne({
+      _id: id,
+      userId: req.user._id,
+    });
+
+    if (!application) {
+      return res.status(404).json({ success: false, message: 'Application not found' });
+    }
+
+    application.isFavorite = !application.isFavorite;
+    await application.save();
+
+    return res.status(200).json({
+      success: true,
+      message: application.isFavorite ? 'Application added to favorites' : 'Application removed from favorites',
+      data: application,
     });
   } catch (error) {
     next(error);
@@ -406,7 +700,7 @@ const getStats = async (req, res, next) => {
       { status: 'Rejected', count: countsMap.Rejected, color: '#F43F5E' },
     ];
 
-    // Aggregation for monthly timeline (last 6 months)
+    // Aggregation for monthly timeline
     const monthlyData = await JobApplication.aggregate([
       { $match: { userId: new mongoose.Types.ObjectId(userId) } },
       {
@@ -432,16 +726,44 @@ const getStats = async (req, res, next) => {
       count: item.count,
     }));
 
-    // Find upcoming interviews (where interviewDate is in future or today, status is Interview)
+    // Find upcoming interviews (where interviewDate is in future or today)
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
+
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
 
     const upcomingInterviews = await JobApplication.find({
       userId,
       interviewDate: { $gte: startOfToday },
     })
       .sort({ interviewDate: 1 })
-      .limit(5);
+      .limit(6);
+
+    // Follow-ups calculations
+    const [followUpsDueToday, overdueFollowUps, pendingFollowUps, favoriteCount] = await Promise.all([
+      JobApplication.countDocuments({
+        userId,
+        followUpCompleted: false,
+        followUpDate: { $gte: startOfToday, $lte: endOfToday },
+      }),
+      JobApplication.countDocuments({
+        userId,
+        followUpCompleted: false,
+        followUpDate: { $lt: startOfToday },
+      }),
+      JobApplication.find({
+        userId,
+        followUpCompleted: false,
+        followUpDate: { $ne: null },
+      })
+        .sort({ followUpDate: 1 })
+        .limit(5),
+      JobApplication.countDocuments({
+        userId,
+        isFavorite: true,
+      }),
+    ]);
 
     // Recent 5 applications
     const recentApplications = await JobApplication.find({ userId })
@@ -449,6 +771,8 @@ const getStats = async (req, res, next) => {
       .limit(5);
 
     // Conversion rate metrics
+    // Interview rate = applications that reached interview stage divided by total applications * 100
+    // Offer rate = applications in offer stage divided by total applications * 100
     const interviewRate = total > 0 ? Math.round((countsMap.Interview / total) * 100) : 0;
     const offerRate = total > 0 ? Math.round((countsMap.Offer / total) * 100) : 0;
 
@@ -465,9 +789,17 @@ const getStats = async (req, res, next) => {
         monthlyTrends,
         upcomingInterviews,
         recentApplications,
+        followUpsDueToday,
+        overdueFollowUps,
+        pendingFollowUps,
+        favoriteCount,
         metrics: {
           interviewRate,
           offerRate,
+        },
+        definitions: {
+          interviewRate: 'Applications reaching Interview stage / Total applications * 100',
+          offerRate: 'Applications in Offer stage / Total applications * 100',
         },
       },
     });
@@ -482,6 +814,11 @@ module.exports = {
   createApplication,
   updateApplication,
   updateStatus,
+  toggleChecklistTask,
+  addChecklistTask,
+  deleteChecklistTask,
+  updateFollowUp,
+  toggleFavorite,
   deleteApplication,
   getStats,
 };

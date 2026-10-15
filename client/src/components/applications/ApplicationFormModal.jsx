@@ -1,6 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Briefcase, Building, DollarSign, Calendar, Link2, FileText, CheckCircle2 } from 'lucide-react';
+import {
+  X,
+  Briefcase,
+  Building,
+  Calendar,
+  Link2,
+  FileText,
+  CheckCircle2,
+  Bell,
+  Star,
+  Award,
+} from 'lucide-react';
 import applicationService from '../../api/applicationService';
 
 const STATUS_OPTIONS = ['Applied', 'Interview', 'Offer', 'Rejected'];
@@ -18,9 +29,12 @@ export const ApplicationFormModal = ({
     role: '',
     jobLink: '',
     salaryExpectation: '',
+    offeredSalary: '',
     applicationDate: new Date().toISOString().split('T')[0],
     status: 'Applied',
     interviewDate: '',
+    followUpDate: '',
+    isFavorite: false,
     notes: '',
   });
 
@@ -39,6 +53,11 @@ export const ApplicationFormModal = ({
           applicationToEdit.salaryExpectation !== undefined
             ? applicationToEdit.salaryExpectation
             : '',
+        offeredSalary:
+          applicationToEdit.offeredSalary !== null &&
+          applicationToEdit.offeredSalary !== undefined
+            ? applicationToEdit.offeredSalary
+            : '',
         applicationDate: applicationToEdit.applicationDate
           ? new Date(applicationToEdit.applicationDate).toISOString().split('T')[0]
           : new Date().toISOString().split('T')[0],
@@ -46,6 +65,10 @@ export const ApplicationFormModal = ({
         interviewDate: applicationToEdit.interviewDate
           ? new Date(applicationToEdit.interviewDate).toISOString().split('T')[0]
           : '',
+        followUpDate: applicationToEdit.followUpDate
+          ? new Date(applicationToEdit.followUpDate).toISOString().split('T')[0]
+          : '',
+        isFavorite: Boolean(applicationToEdit.isFavorite),
         notes: applicationToEdit.notes || '',
       });
     } else {
@@ -54,9 +77,12 @@ export const ApplicationFormModal = ({
         role: '',
         jobLink: '',
         salaryExpectation: '',
+        offeredSalary: '',
         applicationDate: new Date().toISOString().split('T')[0],
         status: 'Applied',
         interviewDate: '',
+        followUpDate: '',
+        isFavorite: false,
         notes: '',
       });
     }
@@ -88,6 +114,12 @@ export const ApplicationFormModal = ({
         errs.salaryExpectation = 'Salary must be a non-negative number';
       }
     }
+    if (formData.offeredSalary !== '' && formData.offeredSalary !== null) {
+      const sal = Number(formData.offeredSalary);
+      if (isNaN(sal) || sal < 0) {
+        errs.offeredSalary = 'Offered salary must be a non-negative number';
+      }
+    }
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -108,9 +140,15 @@ export const ApplicationFormModal = ({
           formData.salaryExpectation !== ''
             ? Number(formData.salaryExpectation)
             : null,
+        offeredSalary:
+          formData.offeredSalary !== ''
+            ? Number(formData.offeredSalary)
+            : null,
         applicationDate: formData.applicationDate,
         status: formData.status,
         interviewDate: formData.interviewDate || null,
+        followUpDate: formData.followUpDate || null,
+        isFavorite: formData.isFavorite,
         notes: formData.notes.trim() || undefined,
       };
 
@@ -201,7 +239,7 @@ export const ApplicationFormModal = ({
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Google, Stripe, Netflix"
+                  placeholder="e.g. Google, Stripe, Infosys"
                   value={formData.company}
                   onChange={(e) => setFormData({ ...formData, company: e.target.value })}
                   className={`w-full clean-input text-sm ${
@@ -221,7 +259,7 @@ export const ApplicationFormModal = ({
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Frontend Engineer Intern"
+                  placeholder="e.g. Software Engineer Intern"
                   value={formData.role}
                   onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                   className={`w-full clean-input text-sm ${
@@ -276,16 +314,16 @@ export const ApplicationFormModal = ({
               </div>
             </div>
 
-            {/* Row 3: Salary Expectation & Interview Date */}
+            {/* Row 3: Salary Expectation (INR) & Interview Date */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-stone-700 mb-1.5 flex items-center gap-1.5">
-                  <DollarSign className="w-3.5 h-3.5 text-forest-700" />
-                  <span>Salary Expectation (USD / Year)</span>
+                  <span className="w-4 h-4 rounded-full bg-forest-100 text-forest-800 text-[10px] font-bold flex items-center justify-center">₹</span>
+                  <span>Salary Expectation (INR / Year)</span>
                 </label>
                 <input
                   type="number"
-                  placeholder="e.g. 95000"
+                  placeholder="e.g. 850000"
                   min="0"
                   value={formData.salaryExpectation}
                   onChange={(e) => setFormData({ ...formData, salaryExpectation: e.target.value })}
@@ -301,7 +339,7 @@ export const ApplicationFormModal = ({
 
               <div>
                 <label className="block text-xs font-semibold text-stone-700 mb-1.5 flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5 text-forest-700" />
+                  <Calendar className="w-3.5 h-3.5 text-amber-600" />
                   <span>Interview Date (Optional)</span>
                 </label>
                 <input
@@ -314,15 +352,67 @@ export const ApplicationFormModal = ({
               </div>
             </div>
 
-            {/* Row 4: Job Posting URL */}
+            {/* Conditional Offer Salary if Status is Offer */}
+            {formData.status === 'Offer' && (
+              <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200">
+                <label className="block text-xs font-bold text-emerald-950 mb-1.5 flex items-center gap-1.5">
+                  <Award className="w-4 h-4 text-emerald-700" />
+                  <span>Confirmed Offer Compensation (INR / Year)</span>
+                </label>
+                <input
+                  type="number"
+                  placeholder="e.g. 1200000"
+                  min="0"
+                  value={formData.offeredSalary}
+                  onChange={(e) => setFormData({ ...formData, offeredSalary: e.target.value })}
+                  className="w-full clean-input text-sm bg-white"
+                  disabled={loading}
+                />
+                <span className="text-[11px] text-emerald-700 mt-1 block">
+                  Recorded as actual confirmed package for salary comparison analytics
+                </span>
+              </div>
+            )}
+
+            {/* Row 4: Follow-up Reminder Date & Bookmark Checkbox */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-stone-700 mb-1.5 flex items-center gap-1.5">
+                  <Bell className="w-3.5 h-3.5 text-forest-700" />
+                  <span>Follow-Up Reminder Date</span>
+                </label>
+                <input
+                  type="date"
+                  value={formData.followUpDate}
+                  onChange={(e) => setFormData({ ...formData, followUpDate: e.target.value })}
+                  className="w-full clean-input text-sm"
+                  disabled={loading}
+                />
+              </div>
+
+              <div className="flex items-center pt-6">
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-stone-800">
+                  <input
+                    type="checkbox"
+                    checked={formData.isFavorite}
+                    onChange={(e) => setFormData({ ...formData, isFavorite: e.target.checked })}
+                    className="w-4 h-4 text-forest-700 rounded border-sand-300 focus:ring-forest-500"
+                  />
+                  <Star className={`w-3.5 h-3.5 ${formData.isFavorite ? 'text-amber-500 fill-amber-400' : 'text-stone-400'}`} />
+                  <span>Bookmark as Priority Application</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Job Link */}
             <div>
               <label className="block text-xs font-semibold text-stone-700 mb-1.5 flex items-center gap-1.5">
                 <Link2 className="w-3.5 h-3.5 text-forest-700" />
-                <span>Job Posting URL (Optional)</span>
+                <span>Job Posting URL</span>
               </label>
               <input
                 type="url"
-                placeholder="https://company.com/careers/job-listing"
+                placeholder="https://example.com/careers/job"
                 value={formData.jobLink}
                 onChange={(e) => setFormData({ ...formData, jobLink: e.target.value })}
                 className={`w-full clean-input text-sm ${
@@ -335,15 +425,15 @@ export const ApplicationFormModal = ({
               )}
             </div>
 
-            {/* Row 5: Notes */}
+            {/* Notes */}
             <div>
               <label className="block text-xs font-semibold text-stone-700 mb-1.5 flex items-center gap-1.5">
                 <FileText className="w-3.5 h-3.5 text-forest-700" />
-                <span>Preparation Notes & Referrals</span>
+                <span>Candidate Notes & Details</span>
               </label>
               <textarea
-                rows={3}
-                placeholder="Mention recruiter contacts, tech stack requirements, or interview prep details..."
+                rows="3"
+                placeholder="e.g. Recruiter contacted via LinkedIn, referral from alumni..."
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 className="w-full clean-input text-sm resize-none"
@@ -351,22 +441,26 @@ export const ApplicationFormModal = ({
               />
             </div>
 
-            {/* Actions */}
-            <div className="flex gap-3 justify-end pt-4 border-t border-sand-200/80">
+            {/* Action Buttons */}
+            <div className="flex justify-end gap-3 pt-4 border-t border-sand-200/80">
               <button
                 type="button"
                 onClick={onClose}
                 disabled={loading}
-                className="btn-secondary px-5 py-2.5 rounded-xl text-sm font-semibold"
+                className="px-4 py-2 rounded-xl border border-sand-200 text-xs font-semibold text-stone-600 hover:bg-sand-50 transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="btn-forest inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold shadow-soft disabled:opacity-50"
+                className="btn-forest px-6 py-2 rounded-xl text-xs font-semibold shadow-soft disabled:opacity-50"
               >
-                <span>{loading ? 'Saving Application...' : isEditMode ? 'Update Application' : 'Create Application'}</span>
+                {loading
+                  ? 'Saving...'
+                  : isEditMode
+                  ? 'Update Application'
+                  : 'Track Application'}
               </button>
             </div>
           </form>

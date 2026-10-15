@@ -14,6 +14,7 @@ import applicationService from '../api/applicationService';
 import StatCard from '../components/common/StatCard';
 import StatusDistributionChart from '../components/dashboard/StatusDistributionChart';
 import UpcomingInterviews from '../components/dashboard/UpcomingInterviews';
+import FollowUpWidget from '../components/dashboard/FollowUpWidget';
 import RecentApplicationsList from '../components/dashboard/RecentApplicationsList';
 import ApplicationDetailsModal from '../components/applications/ApplicationDetailsModal';
 import ApplicationFormModal from '../components/applications/ApplicationFormModal';
@@ -187,12 +188,23 @@ export const DashboardPage = () => {
         </div>
       </div>
 
-      {/* Recent Applications Feed */}
-      <div>
-        <RecentApplicationsList
-          applications={stats?.recentApplications || []}
-          onViewApplication={handleViewApp}
-        />
+      {/* Follow-up Reminders & Recent Applications Feed */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-1">
+          <FollowUpWidget
+            followUps={stats?.pendingFollowUps || []}
+            dueTodayCount={stats?.followUpsDueToday || 0}
+            overdueCount={stats?.overdueFollowUps || 0}
+            onViewApplication={handleViewApp}
+            onFollowUpToggled={fetchStats}
+          />
+        </div>
+        <div className="lg:col-span-2">
+          <RecentApplicationsList
+            applications={stats?.recentApplications || []}
+            onViewApplication={handleViewApp}
+          />
+        </div>
       </div>
 
       {/* Modals */}

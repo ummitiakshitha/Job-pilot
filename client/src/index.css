@@ -81,4 +81,55 @@
   .btn-secondary:active {
     transform: scale(0.98);
   }
+
+  /* Dark mode overrides */
+  .dark {
+    color-scheme: dark;
+  }
+  .dark body {
+    background-color: #0E1612;
+    color: #E6EDE8;
+  }
+  .dark header {
+    background-color: rgba(18, 28, 22, 0.95);
+    border-color: #23352A;
+  }
+  .dark aside {
+    background-color: #121C16;
+    border-color: #23352A;
+  }
+  .dark .bg-white {
+    background-color: #16221B !important;
+    border-color: #26382C !important;
+    color: #E6EDE8 !important;
+  }
+  .dark .bg-ivory-50,
+  .dark .bg-ivory-100 {
+    background-color: #121C16 !important;
+  }
+  .dark .border-sand-200,
+  .dark .border-sand-100 {
+    border-color: #26382C !important;
+  }
+  .dark .text-forest-950,
+  .dark .text-stone-900 {
+    color: #F2F7F4 !important;
+  }
+  .dark .text-stone-700,
+  .dark .text-stone-600 {
+    color: #CBD7CE !important;
+  }
+  .dark .text-stone-500 {
+    color: #92A396 !important;
+  }
+  .dark .clean-input {
+    background: #17241D;
+    border-color: #2B3F32;
+    color: #F2F7F4;
+  }
+  .dark .clean-card {
+    background: #16221B;
+    border-color: #26382C;
+  }
 }
+

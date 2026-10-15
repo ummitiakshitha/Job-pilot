@@ -11,6 +11,8 @@ import ApplicationsPage from './pages/ApplicationsPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import ProfilePage from './pages/ProfilePage';
 
+import CalendarPage from './pages/CalendarPage';
+
 export const App = () => {
   return (
     <AuthProvider>
@@ -30,6 +32,7 @@ export const App = () => {
             <Route element={<AppLayout />}>
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/applications" element={<ApplicationsPage />} />
+              <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/analytics" element={<AnalyticsPage />} />
               <Route path="/profile" element={<ProfilePage />} />
             </Route>

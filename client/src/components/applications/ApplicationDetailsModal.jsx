@@ -5,38 +5,52 @@ import {
   Building,
   Briefcase,
   ExternalLink,
-  DollarSign,
   Calendar,
   FileText,
   Clock,
   Edit2,
   Trash2,
+  Star,
+  Bell,
+  CheckCircle,
+  Activity,
+  Award,
 } from 'lucide-react';
 import StatusBadge from '../common/StatusBadge';
+import PreparationChecklist from './PreparationChecklist';
 import applicationService from '../../api/applicationService';
+import { formatINR, formatDate } from '../../utils/formatters';
 
 const STATUS_OPTIONS = ['Applied', 'Interview', 'Offer', 'Rejected'];
 
 export const ApplicationDetailsModal = ({
   isOpen,
   onClose,
-  application,
+  application: initialApp,
   onEdit,
   onDelete,
   onStatusUpdated,
+  onRefresh,
 }) => {
+  const [app, setApp] = useState(initialApp);
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'checklist' | 'activity'
 
-  if (!isOpen || !application) return null;
+  React.useEffect(() => {
+    setApp(initialApp);
+  }, [initialApp]);
+
+  if (!isOpen || !app) return null;
 
   const handleStatusChange = async (newStatus) => {
-    if (newStatus === application.status) return;
+    if (newStatus === app.status) return;
     setUpdatingStatus(true);
     try {
-      const res = await applicationService.updateStatus(application._id, newStatus);
-      if (onStatusUpdated) {
-        onStatusUpdated(res.data || { ...application, status: newStatus });
-      }
+      const res = await applicationService.updateStatus(app._id, newStatus);
+      const updated = res.data || { ...app, status: newStatus };
+      setApp(updated);
+      if (onStatusUpdated) onStatusUpdated(updated);
+      if (onRefresh) onRefresh();
     } catch (err) {
       console.error('Failed to update status', err);
     } finally {
@@ -44,16 +58,29 @@ export const ApplicationDetailsModal = ({
     }
   };
 
-  const formatDate = (dateStr) => {
-    if (!dateStr) return 'Not specified';
+  const handleToggleFavorite = async () => {
     try {
-      return new Date(dateStr).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
+      const res = await applicationService.toggleFavorite(app._id);
+      if (res?.data) {
+        setApp(res.data);
+        if (onRefresh) onRefresh();
+      }
+    } catch (err) {
+      console.error('Failed to toggle bookmark:', err);
+    }
+  };
+
+  const handleToggleFollowUp = async () => {
+    try {
+      const res = await applicationService.updateFollowUp(app._id, {
+        followUpCompleted: !app.followUpCompleted,
       });
-    } catch {
-      return dateStr;
+      if (res?.data) {
+        setApp(res.data);
+        if (onRefresh) onRefresh();
+      }
+    } catch (err) {
+      console.error('Failed to toggle follow-up:', err);
     }
   };
 
@@ -91,20 +118,27 @@ export const ApplicationDetailsModal = ({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.96, y: 15 }}
           transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-          className="relative w-full max-w-2xl p-6 md:p-8 bg-white rounded-2xl border border-sand-200 shadow-modal z-10 max-h-[90vh] overflow-y-auto"
+          className="relative w-full max-w-3xl p-6 md:p-8 bg-white rounded-2xl border border-sand-200 shadow-modal z-10 max-h-[92vh] overflow-y-auto"
         >
           {/* Header */}
           <div className="flex items-start justify-between pb-4 border-b border-sand-200/80">
             <div>
               <div className="flex items-center gap-3">
+                <button
+                  onClick={handleToggleFavorite}
+                  className="p-1 rounded-lg text-amber-500 hover:text-amber-600 transition-colors"
+                  title={app.isFavorite ? 'Bookmarked application' : 'Click to bookmark'}
+                >
+                  <Star className={`w-5 h-5 ${app.isFavorite ? 'fill-amber-400' : 'text-stone-300'}`} />
+                </button>
                 <h3 className="text-2xl font-bold text-forest-950 tracking-tight font-sans">
-                  {application.role}
+                  {app.role}
                 </h3>
-                <StatusBadge status={application.status} size="md" />
+                <StatusBadge status={app.status} size="md" />
               </div>
-              <p className="text-base text-forest-700 font-semibold mt-1 flex items-center gap-1.5">
+              <p className="text-base text-forest-700 font-semibold mt-1 flex items-center gap-1.5 ml-8">
                 <Building className="w-4 h-4" />
-                <span>{application.company}</span>
+                <span>{app.company}</span>
               </p>
             </div>
             <button
@@ -127,7 +161,7 @@ export const ApplicationDetailsModal = ({
                   disabled={updatingStatus}
                   onClick={() => handleStatusChange(st)}
                   className={`text-xs px-3 py-1.5 rounded-lg font-semibold transition-all ${
-                    application.status === st
+                    app.status === st
                       ? 'bg-forest-800 text-white shadow-soft'
                       : 'bg-white text-stone-600 hover:text-forest-900 border border-sand-200 hover:border-sand-300'
                   }`}
@@ -138,79 +172,214 @@ export const ApplicationDetailsModal = ({
             </div>
           </div>
 
-          {/* Grid Information */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-6">
-            <div className="p-4 rounded-xl bg-white border border-sand-200 flex items-start gap-3 shadow-soft">
-              <Calendar className="w-5 h-5 text-teal-700 min-w-5 mt-0.5" />
-              <div>
-                <span className="text-xs text-stone-500 block font-medium">Applied Date</span>
-                <span className="text-sm font-semibold text-stone-900">
-                  {formatDate(application.applicationDate)}
-                </span>
-              </div>
-            </div>
+          {/* Navigation Tabs */}
+          <div className="flex items-center gap-2 border-b border-sand-200 mb-6">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all ${
+                activeTab === 'overview'
+                  ? 'border-forest-800 text-forest-900'
+                  : 'border-transparent text-stone-500 hover:text-stone-900'
+              }`}
+            >
+              Overview & Details
+            </button>
+            <button
+              onClick={() => setActiveTab('checklist')}
+              className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all flex items-center gap-1.5 ${
+                activeTab === 'checklist'
+                  ? 'border-forest-800 text-forest-900'
+                  : 'border-transparent text-stone-500 hover:text-stone-900'
+              }`}
+            >
+              <span>Prep Checklist</span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-forest-100 text-forest-800 font-extrabold">
+                {app.checklist?.filter((t) => t.completed).length || 0}/{app.checklist?.length || 0}
+              </span>
+            </button>
+            <button
+              onClick={() => setActiveTab('activity')}
+              className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all flex items-center gap-1.5 ${
+                activeTab === 'activity'
+                  ? 'border-forest-800 text-forest-900'
+                  : 'border-transparent text-stone-500 hover:text-stone-900'
+              }`}
+            >
+              <Activity className="w-3.5 h-3.5" />
+              <span>Activity History</span>
+            </button>
+          </div>
 
-            <div className="p-4 rounded-xl bg-white border border-sand-200 flex items-start gap-3 shadow-soft">
-              <Calendar className="w-5 h-5 text-amber-700 min-w-5 mt-0.5" />
-              <div>
-                <span className="text-xs text-stone-500 block font-medium">Interview Date</span>
-                <span className="text-sm font-semibold text-stone-900">
-                  {application.interviewDate ? formatDate(application.interviewDate) : 'Not Scheduled'}
-                </span>
-              </div>
-            </div>
+          {/* Tab 1: Overview */}
+          {activeTab === 'overview' && (
+            <div className="space-y-6">
+              {/* Grid Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 rounded-xl bg-white border border-sand-200 flex items-start gap-3 shadow-soft">
+                  <Calendar className="w-5 h-5 text-teal-700 min-w-5 mt-0.5" />
+                  <div>
+                    <span className="text-xs text-stone-500 block font-medium">Applied Date</span>
+                    <span className="text-sm font-semibold text-stone-900">
+                      {formatDate(app.applicationDate)}
+                    </span>
+                  </div>
+                </div>
 
-            <div className="p-4 rounded-xl bg-white border border-sand-200 flex items-start gap-3 shadow-soft">
-              <DollarSign className="w-5 h-5 text-forest-700 min-w-5 mt-0.5" />
-              <div>
-                <span className="text-xs text-stone-500 block font-medium">Salary Expectation</span>
-                <span className="text-sm font-semibold text-stone-900">
-                  {application.salaryExpectation
-                    ? `$${Number(application.salaryExpectation).toLocaleString()} / yr`
-                    : 'Undisclosed'}
-                </span>
-              </div>
-            </div>
+                <div className="p-4 rounded-xl bg-white border border-sand-200 flex items-start gap-3 shadow-soft">
+                  <Calendar className="w-5 h-5 text-amber-700 min-w-5 mt-0.5" />
+                  <div>
+                    <span className="text-xs text-stone-500 block font-medium">Interview Date</span>
+                    <span className="text-sm font-semibold text-stone-900">
+                      {app.interviewDate ? formatDate(app.interviewDate) : 'Not Scheduled'}
+                    </span>
+                  </div>
+                </div>
 
-            <div className="p-4 rounded-xl bg-white border border-sand-200 flex items-start gap-3 shadow-soft">
-              <ExternalLink className="w-5 h-5 text-forest-700 min-w-5 mt-0.5" />
-              <div className="overflow-hidden">
-                <span className="text-xs text-stone-500 block font-medium">Job Posting Link</span>
-                {application.jobLink ? (
-                  <a
-                    href={application.jobLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm font-semibold text-forest-700 hover:text-forest-900 hover:underline truncate block"
+                {/* Salary Expectation (Indian Rupees) */}
+                <div className="p-4 rounded-xl bg-white border border-sand-200 flex items-start gap-3 shadow-soft">
+                  <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center text-xs min-w-5 mt-0.5">
+                    ₹
+                  </div>
+                  <div>
+                    <span className="text-xs text-stone-500 block font-medium">Expected Salary</span>
+                    <span className="text-sm font-bold text-forest-950">
+                      {formatINR(app.salaryExpectation) || 'Undisclosed'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Confirmed Offer Salary if available */}
+                <div className="p-4 rounded-xl bg-white border border-sand-200 flex items-start gap-3 shadow-soft">
+                  <Award className="w-5 h-5 text-emerald-600 min-w-5 mt-0.5" />
+                  <div>
+                    <span className="text-xs text-stone-500 block font-medium">Confirmed Offer Compensation</span>
+                    <span className="text-sm font-bold text-emerald-700">
+                      {formatINR(app.offeredSalary) || (app.status === 'Offer' ? 'Pending offer letter' : 'N/A')}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Job Link */}
+                <div className="p-4 rounded-xl bg-white border border-sand-200 flex items-start gap-3 shadow-soft md:col-span-2">
+                  <ExternalLink className="w-5 h-5 text-forest-700 min-w-5 mt-0.5" />
+                  <div className="overflow-hidden flex-1">
+                    <span className="text-xs text-stone-500 block font-medium">Job Posting Link</span>
+                    {app.jobLink ? (
+                      <a
+                        href={app.jobLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm font-semibold text-forest-700 hover:text-forest-900 hover:underline truncate block"
+                      >
+                        {app.jobLink} &rarr;
+                      </a>
+                    ) : (
+                      <span className="text-sm text-stone-400 font-medium">No link provided</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Feature 5: Follow-Up Reminder Box */}
+              {app.followUpDate && (
+                <div className="p-4 rounded-xl bg-amber-50/80 border border-amber-200/90 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <Bell className="w-5 h-5 text-amber-700 flex-shrink-0" />
+                    <div>
+                      <div className="text-xs font-bold text-amber-950">
+                        Follow-Up Scheduled: {formatDate(app.followUpDate)}
+                      </div>
+                      <span className="text-[11px] text-amber-800">
+                        {app.followUpCompleted ? 'Completed' : 'Action needed: send follow-up inquiry'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleToggleFollowUp}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm ${
+                      app.followUpCompleted
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-white text-stone-700 border border-sand-200 hover:bg-amber-100'
+                    }`}
                   >
-                    View Original Posting &rarr;
-                  </a>
-                ) : (
-                  <span className="text-sm text-stone-400 font-medium">No link provided</span>
-                )}
+                    {app.followUpCompleted ? '✓ Completed' : 'Mark Done'}
+                  </button>
+                </div>
+              )}
+
+              {/* Notes Section */}
+              <div>
+                <h4 className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <FileText className="w-4 h-4 text-forest-700" />
+                  <span>Notes & Preparation Details</span>
+                </h4>
+                <div className="p-4 rounded-xl bg-ivory-50 border border-sand-200 text-sm text-stone-700 leading-relaxed whitespace-pre-wrap min-h-[80px]">
+                  {app.notes || 'No notes added for this application.'}
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
-          {/* Notes Section */}
-          <div className="my-6">
-            <h4 className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <FileText className="w-4 h-4 text-forest-700" />
-              <span>Notes & Preparation Details</span>
-            </h4>
-            <div className="p-4 rounded-xl bg-ivory-50 border border-sand-200 text-sm text-stone-700 leading-relaxed whitespace-pre-wrap min-h-[80px]">
-              {application.notes || 'No notes added for this application.'}
+          {/* Tab 2: Interview Preparation Checklist */}
+          {activeTab === 'checklist' && (
+            <div className="p-2">
+              <PreparationChecklist
+                application={app}
+                onRefresh={(updated) => {
+                  setApp(updated);
+                  if (onRefresh) onRefresh();
+                }}
+              />
             </div>
-          </div>
+          )}
+
+          {/* Tab 3: Activity Timeline */}
+          {activeTab === 'activity' && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Activity className="w-4 h-4 text-forest-700" />
+                <h4 className="text-sm font-bold text-forest-950 font-sans">
+                  Chronological Event Timeline
+                </h4>
+              </div>
+
+              {app.activityHistory && app.activityHistory.length > 0 ? (
+                <div className="space-y-3 relative pl-6 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-sand-300">
+                  {app.activityHistory
+                    .slice()
+                    .reverse()
+                    .map((item, idx) => (
+                      <div key={idx} className="relative group">
+                        <span className="absolute -left-6 top-1.5 w-2.5 h-2.5 rounded-full bg-forest-600 ring-4 ring-white" />
+                        <div className="p-3 rounded-xl bg-ivory-50 border border-sand-200 shadow-sm">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-bold text-forest-950 font-sans">{item.action}</span>
+                            <span className="text-[10px] text-stone-400">
+                              {formatDateTime(item.timestamp)}
+                            </span>
+                          </div>
+                          <p className="text-xs text-stone-600 mt-1">{item.description}</p>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              ) : (
+                <div className="p-8 text-center rounded-xl border border-dashed border-sand-300 text-xs text-stone-400">
+                  No activity history recorded yet.
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Timestamps */}
-          <div className="pt-4 border-t border-sand-200/80 flex flex-wrap items-center justify-between gap-2 text-xs text-stone-500">
+          <div className="pt-4 mt-6 border-t border-sand-200/80 flex flex-wrap items-center justify-between gap-2 text-xs text-stone-500">
             <div className="flex items-center gap-1">
               <Clock className="w-3.5 h-3.5" />
-              <span>Created: {formatDateTime(application.createdAt)}</span>
+              <span>Created: {formatDateTime(app.createdAt)}</span>
             </div>
             <div>
-              <span>Last Updated: {formatDateTime(application.updatedAt)}</span>
+              <span>Last Updated: {formatDateTime(app.updatedAt)}</span>
             </div>
           </div>
 
@@ -219,7 +388,7 @@ export const ApplicationDetailsModal = ({
             <button
               onClick={() => {
                 onClose();
-                if (onDelete) onDelete(application);
+                if (onDelete) onDelete(app);
               }}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-rose-200 text-rose-700 hover:bg-rose-50 text-sm font-semibold transition-colors"
             >
@@ -230,7 +399,7 @@ export const ApplicationDetailsModal = ({
             <button
               onClick={() => {
                 onClose();
-                if (onEdit) onEdit(application);
+                if (onEdit) onEdit(app);
               }}
               className="btn-forest inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold shadow-soft"
             >
