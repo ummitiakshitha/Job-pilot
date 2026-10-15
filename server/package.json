@@ -1,0 +1,32 @@
+{
+  "name": "jobpilot-server",
+  "version": "1.0.0",
+  "description": "Backend REST API server for JobPilot - 3D-Enhanced Job Application Tracker",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node tests/api.test.js"
+  },
+  "keywords": [
+    "jobpilot",
+    "mern",
+    "express",
+    "mongodb",
+    "rest-api"
+  ],
+  "author": "JobPilot Team",
+  "license": "MIT",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "jobpilot-fullstack": "file:..",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.3.1"
+  },
+  "devDependencies": {
+    "mongodb-memory-server": "^9.1.8"
+  }
+}
