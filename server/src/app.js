@@ -30,6 +30,17 @@ app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
 const mongoose = require('mongoose');
 
+// Root endpoint for backend status
+app.get('/', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'JobPilot Backend REST API is running successfully!',
+    frontendApp: 'http://localhost:5173',
+    healthCheck: '/api/health',
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // Health check endpoint with database connection status
 app.get('/api/health', (req, res) => {
   const isConnected = mongoose.connection.readyState === 1;
